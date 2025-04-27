@@ -1,2 +1,2 @@
 # smart-parking
-Revolutionize campus parking with this IoT-powered solution! This system uses Arduino sensors, Node-RED, and a real-time dashboard to monitor parking spot availability. Detect vacant or occupied spots instantly, visualize parking status on an interactive map, and optimize campus parking efficiency.
+In most organizations in my country, security officers are used to organize parking but using IOT to build a smart parking with real-time dashboards accessible by anyone in a particular organisation to detect availability of a parking spot which saves on time and labour.
