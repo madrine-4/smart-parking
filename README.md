@@ -1,2 +1,2 @@
 # smart-parking
-In most organizations in my country, security officers are used to organize parking but using IOT to build a smart parking with real-time dashboards accessible by anyone in a particular organisation to detect availability of a parking spot which saves on time and labour.
+In many organizations in my country, security officers manually manage parking spaces. This project uses IoT to build a smart parking system with real-time dashboards accessible to anyone within an organization. It enables users to detect parking spot availability instantly, saving time and reducing the need for manual labor.
