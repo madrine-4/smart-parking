@@ -1,0 +1,146 @@
+#include <SPI.h>
+#include <LoRa.h>
+#include <DHT.h>
+
+// Ultrasonic Sensor Pins
+#define TRIG_PIN 5
+#define ECHO_PIN 6
+
+#define DISTANCE_THRESHOLD 60      // (in cm)
+#define MAX_DISTANCE 400           //  (in cm)
+
+// DHT Sensor Pin and Type
+#define DHTPIN 7                   
+#define DHTTYPE DHT11              
+// LoRa Configuration
+#define LORA_BAND 868E6            
+
+// LED Pins
+#define YELLOW_LED 9               
+#define GREEN_LED 8               
+#define BLUE_LED 10                
+
+
+const String DEVICE_ID = "<018229BB>"; 
+
+const String SPOT_ID = "spot6";
+
+DHT dht(DHTPIN, DHTTYPE);
+
+bool loraConnected = false;
+
+void setup() {
+    Serial.begin(9600);
+    
+    pinMode(TRIG_PIN, OUTPUT);
+    pinMode(ECHO_PIN, INPUT);
+
+    pinMode(YELLOW_LED, OUTPUT);
+    pinMode(GREEN_LED, OUTPUT);
+    pinMode(BLUE_LED, OUTPUT);
+
+
+    dht.begin();
+
+    Serial.println("Initializing LoRa...");
+    if (!LoRa.begin(LORA_BAND)) {
+        Serial.println("LoRa initialization failed!");
+        while (1); 
+    } else {
+        Serial.println("LoRa initialized successfully.");
+        loraConnected = true;
+        
+        
+        LoRa.setSpreadingFactor(7);          
+        LoRa.setSignalBandwidth(125000);     
+        LoRa.setCodingRate4(5);              
+        LoRa.setSyncWord(0x34);              
+    }
+}
+
+void loop() {
+    long distance = measureDistance(TRIG_PIN, ECHO_PIN);
+
+    String occupancyStatus = (distance > 0 && distance < DISTANCE_THRESHOLD) ? "occupied" : "vacant";
+
+    
+    if (occupancyStatus == "occupied") {
+        digitalWrite(YELLOW_LED, HIGH);  
+        digitalWrite(GREEN_LED, LOW);    
+    } else {
+        digitalWrite(YELLOW_LED, LOW);   
+        digitalWrite(GREEN_LED, HIGH);   
+    }
+
+    float humidity = dht.readHumidity();
+    float temperature = dht.readTemperature();
+
+    if (isnan(humidity) || isnan(temperature)) {
+        Serial.println("Failed to read from DHT sensor!");
+    } else {
+        Serial.print("Humidity: ");
+        Serial.print(humidity);
+        Serial.print(" %\t");
+        Serial.print("Temperature: ");
+        Serial.print(temperature);
+        Serial.println(" *C");
+    }
+
+    Serial.print("Distance: ");
+    Serial.print(distance);
+    Serial.print(" cm - Status: ");
+    Serial.println(occupancyStatus);
+
+
+    sendDataToDragino(SPOT_ID, occupancyStatus, temperature, humidity);
+
+    if (loraConnected) {
+        digitalWrite(BLUE_LED, HIGH);
+        delay(500);
+        digitalWrite(BLUE_LED, LOW);
+        delay(500);
+    }
+
+    delay(2000);  
+}
+
+long measureDistance(int trigPin, int echoPin) {
+    digitalWrite(trigPin, LOW);
+    delayMicroseconds(2);
+    digitalWrite(trigPin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigPin, LOW);
+  
+    long duration = pulseIn(echoPin, HIGH, 10000); // Timeout of 10ms
+    
+    if (duration == 0) {
+        Serial.println("Error: No echo received!");
+        return MAX_DISTANCE; 
+    }
+    
+    long distance = (duration * 0.034) / 2;
+    return (distance > MAX_DISTANCE) ? MAX_DISTANCE : distance;
+}
+
+void sendDataToDragino(String spotId, String status, float temperature, float humidity) {
+    if (!loraConnected) {
+        Serial.println("LoRa not connected. Cannot send data.");
+        return;
+    }
+
+    String payload = DEVICE_ID + "&spot=" + spotId + "&status=" + status + "&temp=" + String(temperature) + "&hum=" + String(humidity);
+    
+    for (int i = 0; i < 5; i++) {
+        digitalWrite(BLUE_LED, HIGH);
+        delay(100);
+        digitalWrite(BLUE_LED, LOW);
+        delay(100);
+    }
+
+    // Send payload over LoRa
+    LoRa.beginPacket();
+    LoRa.print(payload);
+    LoRa.endPacket();
+
+    Serial.println("Data sent to Dragino: " + payload);
+}
